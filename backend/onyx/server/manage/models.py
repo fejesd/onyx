@@ -61,6 +61,7 @@ class AuthTypeResponse(BaseModel):
     # whether there are any users in the system
     has_users: bool = True
     oauth_enabled: bool = False
+    kroki_enabled: bool = False
 
 
 class UserSpecificAssistantPreference(BaseModel):
