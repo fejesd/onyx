@@ -1,12 +1,45 @@
 import { cn } from "@/lib/utils";
 import Text from "@/refresh-components/texts/Text";
-import React, { useState, ReactNode, useCallback, useMemo, memo } from "react";
+import React, { useState, ReactNode, useCallback, useMemo, memo, useEffect } from "react";
 import { SvgCheck, SvgCode, SvgCopy } from "@opal/icons";
+import KrokiDiagram from "@/components/chat/KrokiDiagram";
+import { KROKI_SUPPORTED_LANGUAGES } from "@/lib/kroki_constants";
+
+// Module-level flag to track if Kroki feature is confirmed disabled for the session
+let isKrokiFeatureConfirmedDisabled = false;
+
+// Detect if a JSON string is a Vega, Vega-Lite, WaveDrom, or Excalidraw diagram.
+// Returns the Kroki diagram type name, or null if not recognized.
+function detectJsonDiagramType(codeText: string): string | null {
+  try {
+    const parsed = JSON.parse(codeText);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+
+    // Vega / Vega-Lite: identified by $schema URL
+    if (typeof parsed.$schema === "string") {
+      if (parsed.$schema.includes("vega-lite")) return "vegalite";
+      if (parsed.$schema.includes("vega")) return "vega";
+    }
+
+    // WaveDrom: top-level must have a 'signal' key (array of signal rows)
+    if ("signal" in parsed) return "wavedrom";
+
+    // Excalidraw: has type === "excalidraw" or has both 'elements' and 'appState'
+    if (parsed.type === "excalidraw") return "excalidraw";
+    if (Array.isArray(parsed.elements) && "appState" in parsed) return "excalidraw";
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 
 interface CodeBlockProps {
   className?: string;
   children?: ReactNode;
   codeText: string;
+  isFallback?: boolean; // Added prop to prevent recursion
 }
 
 const MemoizedCodeLine = memo(({ content }: { content: ReactNode }) => (
@@ -17,8 +50,19 @@ export const CodeBlock = memo(function CodeBlock({
   className = "",
   children,
   codeText,
+  isFallback = false, // Default to false
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  // Local state to force re-render if isKrokiFeatureConfirmedDisabled changes
+  const [krokiDisabledSignal, setKrokiDisabledSignal] = useState(isKrokiFeatureConfirmedDisabled);
+
+  useEffect(() => {
+    // This effect ensures that if the global flag changes, this component instance re-evaluates
+    if (isKrokiFeatureConfirmedDisabled !== krokiDisabledSignal) {
+      setKrokiDisabledSignal(isKrokiFeatureConfirmedDisabled);
+    }
+  }, [krokiDisabledSignal]);
+
 
   const language = useMemo(() => {
     return className
@@ -82,8 +126,53 @@ export const CodeBlock = memo(function CodeBlock({
     );
   }
 
+  // If Kroki is not confirmed disabled, language is supported,
+  // it's a fenced code block, codeText is not empty, AND it's not already a fallback.
+  if (
+    !isFallback && // Check if this CodeBlock instance is NOT a fallback
+    !isKrokiFeatureConfirmedDisabled &&
+    language &&
+    KROKI_SUPPORTED_LANGUAGES.has(language) &&
+    codeText.trim() !== ""
+  ) {
+    return (
+      <KrokiDiagram
+        diagramType={language}
+        codeText={codeText}
+        onFeatureDisabled={() => {
+          if (!isKrokiFeatureConfirmedDisabled) {
+            isKrokiFeatureConfirmedDisabled = true;
+            setKrokiDisabledSignal(true); // Trigger re-render for other instances
+          }
+        }}
+      />
+    );
+  }
+
+  // For JSON code blocks, try to detect embedded diagram formats (Vega, Vega-Lite, WaveDrom, Excalidraw)
+  if (!isFallback && !isKrokiFeatureConfirmedDisabled && language === "json" && codeText.trim() !== "") {
+    const detectedType = detectJsonDiagramType(codeText);
+    if (detectedType) {
+      return (
+        <KrokiDiagram
+          diagramType={detectedType}
+          codeText={codeText}
+          onFeatureDisabled={() => {
+            if (!isKrokiFeatureConfirmedDisabled) {
+              isKrokiFeatureConfirmedDisabled = true;
+              setKrokiDisabledSignal(true);
+            }
+          }}
+        />
+      );
+    }
+  }
+
+  // Original CodeContent rendering logic for standard code blocks or when Kroki is not applicable
   const CodeContent = () => {
     if (!language) {
+      // This typically handles cases where it might be a simple preformatted block
+      // without a language, or if the language wasn't parsed correctly.
       return (
         <pre className="!p-2 m-0 overflow-x-auto w-0 min-w-full hljs">
           <code className={`text-sm hljs ${className}`}>
@@ -97,6 +186,7 @@ export const CodeBlock = memo(function CodeBlock({
       );
     }
 
+    // Standard fenced code block rendering
     return (
       <pre className="!p-2 m-0 overflow-x-auto w-0 min-w-full hljs">
         <code className="text-xs">
@@ -110,6 +200,7 @@ export const CodeBlock = memo(function CodeBlock({
     );
   };
 
+  // Original return structure for non-Kroki code blocks
   return (
     <div className="bg-background-tint-00 px-1 pb-1 rounded-12 max-w-full min-w-0">
       {language && (

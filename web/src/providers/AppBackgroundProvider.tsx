@@ -30,10 +30,21 @@ export function AppBackgroundProvider({
 
   const value = useMemo(() => {
     const chatBackgroundId = user?.preferences?.chat_background;
-    const appBackground = getBackgroundById(chatBackgroundId ?? null);
-    const hasBackground =
-      !!appBackground && appBackground.src !== CHAT_BACKGROUND_NONE;
-    const appBackgroundUrl = hasBackground ? appBackground.src : null;
+    const isCustomUrl =
+      !!chatBackgroundId &&
+      (chatBackgroundId.startsWith("http://") ||
+        chatBackgroundId.startsWith("https://"));
+    const appBackground = isCustomUrl
+      ? undefined
+      : getBackgroundById(chatBackgroundId ?? null);
+    const hasBackground = isCustomUrl
+      ? true
+      : !!appBackground && appBackground.src !== CHAT_BACKGROUND_NONE;
+    const appBackgroundUrl = isCustomUrl
+      ? chatBackgroundId
+      : hasBackground && appBackground
+        ? appBackground.src
+        : null;
 
     return {
       appBackground,
