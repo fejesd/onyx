@@ -291,7 +291,11 @@ def send_email_with_smtplib(
 
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
         s.starttls()
-        s.login(SMTP_USER, SMTP_PASS)
+        if SMTP_USER and SMTP_PASS:
+            try:
+                s.login(SMTP_USER, SMTP_PASS)
+            except smtplib.SMTPAuthenticationError:
+                pass  # Server doesn't require auth, proceed without it
         s.send_message(msg)
 
 
