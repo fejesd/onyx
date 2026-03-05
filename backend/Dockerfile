@@ -23,7 +23,7 @@ RUN groupadd -g 1001 onyx && \
     chmod 755 /var/log/onyx && \
     chown onyx:onyx /var/log/onyx
 
-COPY --from=ghcr.io/astral-sh/uv:0.9.9 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.9.8 /uv /uvx /bin/
 
 # Install system dependencies
 # cmake needed for psycopg (postgres)

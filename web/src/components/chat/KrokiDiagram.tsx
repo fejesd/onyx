@@ -6,7 +6,7 @@ import {
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RefreshCcw
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { CodeBlock } from "@/app/chat/message/CodeBlock";
+import { CodeBlock } from "@/app/app/message/CodeBlock";
 import {
   Dialog,
   DialogContent,

@@ -8,6 +8,32 @@ import { KROKI_SUPPORTED_LANGUAGES } from "@/lib/kroki_constants";
 // Module-level flag to track if Kroki feature is confirmed disabled for the session
 let isKrokiFeatureConfirmedDisabled = false;
 
+// Detect if a JSON string is a Vega, Vega-Lite, WaveDrom, or Excalidraw diagram.
+// Returns the Kroki diagram type name, or null if not recognized.
+function detectJsonDiagramType(codeText: string): string | null {
+  try {
+    const parsed = JSON.parse(codeText);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+
+    // Vega / Vega-Lite: identified by $schema URL
+    if (typeof parsed.$schema === "string") {
+      if (parsed.$schema.includes("vega-lite")) return "vegalite";
+      if (parsed.$schema.includes("vega")) return "vega";
+    }
+
+    // WaveDrom: top-level must have a 'signal' key (array of signal rows)
+    if ("signal" in parsed) return "wavedrom";
+
+    // Excalidraw: has type === "excalidraw" or has both 'elements' and 'appState'
+    if (parsed.type === "excalidraw") return "excalidraw";
+    if (Array.isArray(parsed.elements) && "appState" in parsed) return "excalidraw";
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 
 interface CodeBlockProps {
   className?: string;
@@ -107,7 +133,6 @@ export const CodeBlock = memo(function CodeBlock({
     !isKrokiFeatureConfirmedDisabled &&
     language &&
     KROKI_SUPPORTED_LANGUAGES.has(language) &&
-    typeof children !== "string" && 
     codeText.trim() !== ""
   ) {
     return (
@@ -122,6 +147,25 @@ export const CodeBlock = memo(function CodeBlock({
         }}
       />
     );
+  }
+
+  // For JSON code blocks, try to detect embedded diagram formats (Vega, Vega-Lite, WaveDrom, Excalidraw)
+  if (!isFallback && !isKrokiFeatureConfirmedDisabled && language === "json" && codeText.trim() !== "") {
+    const detectedType = detectJsonDiagramType(codeText);
+    if (detectedType) {
+      return (
+        <KrokiDiagram
+          diagramType={detectedType}
+          codeText={codeText}
+          onFeatureDisabled={() => {
+            if (!isKrokiFeatureConfirmedDisabled) {
+              isKrokiFeatureConfirmedDisabled = true;
+              setKrokiDisabledSignal(true);
+            }
+          }}
+        />
+      );
+    }
   }
 
   // Original CodeContent rendering logic for standard code blocks or when Kroki is not applicable

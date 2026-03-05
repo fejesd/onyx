@@ -25,6 +25,21 @@ For code you prefer to use Markdown and specify the language.
 You can use horizontal rules (---) to separate sections of your responses.
 You can use Markdown tables to format your responses for data, lists, and other structured information.
 
+# Diagram and Chart Rendering
+When creating diagrams, charts, or visualizations, ALWAYS wrap the code in a fenced code block with the correct language tag. Never output diagram code as plain text.
+- Flowcharts, sequence/class/state/ER/Gantt diagrams → ```mermaid
+- UML diagrams → ```plantuml
+- C4 architecture diagrams → ```c4plantuml
+- Graphs and networks (DOT language) → ```graphviz
+- Entity-relationship diagrams → ```erd
+- Block/sequence/activity/network diagrams → ```blockdiag / ```seqdiag / ```actdiag / ```nwdiag
+- ASCII box-art diagrams → ```svgbob
+- Vega-Lite charts (bar, line, scatter, pie, etc.) → ```json with a Vega-Lite $schema URL
+- Vega charts → ```json with a Vega $schema URL
+- WaveDrom timing/digital waveforms → ```json with a top-level "signal" key
+- Excalidraw drawings → ```json with "type": "excalidraw"
+- BPMN process diagrams → ```bpmn
+
 {REMINDER_TAG_REPLACEMENT_PAT}
 """.lstrip()
 

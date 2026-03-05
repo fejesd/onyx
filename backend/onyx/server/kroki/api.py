@@ -14,13 +14,9 @@ from onyx.server.models import StatusResponse
 from onyx.utils.logger import setup_logger
 from typing import Optional # Added for type hinting
 
-from onyx.llm.factory import get_default_llms
-from onyx.llm.exceptions import GenAIDisabledException
-from onyx.llm.chat_llm import LLMTimeoutError, LLMRateLimitError
-from onyx.llm.interfaces import LLM # For type hinting
-from onyx.db.engine import get_session_context_manager
-from onyx.db.llm import fetch_default_provider
-from onyx.llm.factory import llm_from_provider
+from onyx.llm.factory import get_default_llm
+from onyx.llm.multi_llm import LLMTimeoutError, LLMRateLimitError
+from onyx.llm.interfaces import LLM  # For type hinting
 
 logger = setup_logger("onyx.kroki")
 
@@ -100,42 +96,7 @@ def _cached_kroki_request(diagram_type: str, content_hash: str, initial_content:
                     # --- BEGIN LLM CORRECTION IMPLEMENTATION ---
                     corrected_code_from_llm: Optional[str] = None
                     try:
-                        # LLM instance for correction, potentially specialized
-                        correction_llm_instance: Optional[LLM] = None
-
-                        # Try to get the specific correction model
-                        if KROKI_CORRECTION_MODEL_NAME:
-                            try:
-                                with get_session_context_manager() as db_session:
-                                    default_llm_provider_details = fetch_default_provider(db_session)
-
-                                if default_llm_provider_details:
-                                    correction_llm_instance = llm_from_provider(
-                                        KROKI_CORRECTION_MODEL_NAME,
-                                        default_llm_provider_details,
-                                    )
-                                    logger.info(
-                                        f"Successfully initialized LLM with specific model for Kroki correction: {KROKI_CORRECTION_MODEL_NAME}"
-                                    )
-                                else:
-                                    logger.warning(
-                                        "Could not fetch default LLM provider details to use KROKI_CORRECTION_MODEL_NAME. "
-                                        "Will attempt fallback to default LLM."
-                                    )
-                            except Exception as e:
-                                logger.warning(
-                                    f"Failed to initialize LLM with KROKI_CORRECTION_MODEL_NAME "
-                                    f"'{KROKI_CORRECTION_MODEL_NAME}': {e}. Will attempt fallback to default LLM."
-                                )
-
-                        # Fallback to the general default LLM if specific one wasn't created or not configured
-                        if not correction_llm_instance:
-                            logger.info(
-                                "KROKI_CORRECTION_MODEL_NAME not configured or failed to initialize. "
-                                "Falling back to default LLM for Kroki correction."
-                            )
-                            default_llm_instance, _ = get_default_llms()
-                            correction_llm_instance = default_llm_instance
+                        correction_llm_instance: Optional[LLM] = get_default_llm()
                         
                         llm_prompt = (
                             f"The following '{diagram_type}' diagram code produced a syntax error when processed by Kroki.\n\n"
@@ -167,11 +128,6 @@ def _cached_kroki_request(diagram_type: str, content_hash: str, initial_content:
                                 f"Response: {llm_response}"
                             )
 
-                    except GenAIDisabledException as gen_ai_err:
-                        logger.error(
-                            f"LLM call failed for '{diagram_type}' as Generative AI is disabled: {str(gen_ai_err)}. "
-                            f"Original Kroki error: {kroki_error_message}"
-                        )
                     except (LLMTimeoutError, LLMRateLimitError) as llm_infra_err:
                         logger.error(
                             f"LLM call failed for '{diagram_type}' due to LLM infrastructure error: {str(llm_infra_err)}. "
