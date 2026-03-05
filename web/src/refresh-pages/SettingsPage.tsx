@@ -192,6 +192,15 @@ function GeneralSettings() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
+  const currentBackground = user?.preferences?.chat_background ?? null;
+  const isCustomUrl =
+    !!currentBackground &&
+    (currentBackground.startsWith("http://") ||
+      currentBackground.startsWith("https://"));
+  const [customBgUrl, setCustomBgUrl] = useState(
+    isCustomUrl ? currentBackground : ""
+  );
+
   const {
     personalizationValues,
     updatePersonalizationField,
@@ -380,17 +389,19 @@ function GeneralSettings() {
                 {CHAT_BACKGROUND_OPTIONS.map((bg) => {
                   const currentBackgroundId =
                     user?.preferences?.chat_background ?? "none";
-                  const isSelected = currentBackgroundId === bg.id;
+                  const isSelected =
+                    !isCustomUrl && currentBackgroundId === bg.id;
                   const isNone = bg.src === CHAT_BACKGROUND_NONE;
 
                   return (
                     <button
                       key={bg.id}
-                      onClick={() =>
+                      onClick={() => {
+                        setCustomBgUrl("");
                         updateUserChatBackground(
                           bg.id === CHAT_BACKGROUND_NONE ? null : bg.id
-                        )
-                      }
+                        );
+                      }}
                       className="relative overflow-hidden rounded-lg transition-all w-[90px] h-[68px] cursor-pointer border-none p-0 bg-transparent group"
                       title={bg.label}
                       aria-label={`${bg.label} background${
@@ -424,6 +435,24 @@ function GeneralSettings() {
                   );
                 })}
               </div>
+              <InputTypeIn
+                placeholder="Or enter a custom image URL (https://...)"
+                value={customBgUrl}
+                onChange={(e) => setCustomBgUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                onBlur={() => {
+                  const url = customBgUrl.trim();
+                  if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+                    updateUserChatBackground(url);
+                  } else if (!url && isCustomUrl) {
+                    updateUserChatBackground(null);
+                  }
+                }}
+              />
             </InputLayouts.Vertical>
           </Card>
         </Section>
