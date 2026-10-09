@@ -127,9 +127,11 @@ class ScrapeSessionContext:
 
         # Teardown orphans Chromium helpers onto the docfetching subreaper;
         # drain them now instead of letting zombies pile up until the run ends
+        # LIGHTWARE-ISSUE-15664: drain orphaned Chromium helpers after teardown
         reap_zombie_children()
 
 
+# LIGHTWARE-ISSUE-15664: file links are skipped, not retried
 def _is_download_error(e: Exception) -> bool:
     """page.goto() on a file link (ZIP, DOCX, ...) fails this way, every time."""
     return isinstance(e, PlaywrightError) and "Download is starting" in str(e)

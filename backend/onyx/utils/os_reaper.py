@@ -111,6 +111,7 @@ def _live_child_pids() -> list[int]:
     return [pid for pid, state in _child_pids_by_state() if state != "Z"]
 
 
+# LIGHTWARE-ISSUE-15664: mid-run zombie drain (drop once upstream ships it)
 def reap_zombie_children() -> int:
     """Mid-run drain for a subreaper: reap only children that are already
     zombies, pid by pid. Running children are never waited on, so a live
